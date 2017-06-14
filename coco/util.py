@@ -12,7 +12,9 @@ def build(coco_annotation_file, image_path_prefix,
           category_ids=None,
           bbox_minimum_area=None, 
           store_keypoints=False, expand_boxes_to_include_keypoints=False,
-          store_crowds=False):
+          store_crowds=False,
+          remap_category_ids=True,
+          single_class=False):
     """Construct a tfrecords json data structure.
     Args:
         coco_annotation_file: (str) path to the coco annotation file
@@ -22,6 +24,9 @@ def build(coco_annotation_file, image_path_prefix,
         store_keypoints: (bool) If True, then keypoints annotations will be stored
         expand_bbox_to_include_keypoints: (bool) If True, then a bounding box will be expanded if a keypoint annotations falls outside of it.
         store_crowds: (bool) If True, then crowd annotations are stored.
+        remap_category_ids: (bool) If true, then the provided ids will be remapped to labels in the range [0, # categories]. If false then
+            the provided ids will be used as the labels
+        single_class: (bool) If true then a `class.label` and a `class.text` field will be provided for all images.
     
     Returns:
         list : A list that can be passed to create_tfrecords,create() 
@@ -50,7 +55,10 @@ def build(coco_annotation_file, image_path_prefix,
     category_ids_set = set(category_ids)
 
     category_id_to_category = {category['id'] : category for category in categories}
-    category_id_to_label = {category_id : label for label, category_id in enumerate(category_ids)}
+    if remap_category_ids:
+        category_id_to_label = {category_id : label for label, category_id in enumerate(category_ids)}
+    else:
+        category_id_to_label = {category_id : category_id for category_id in category_ids}
 
 
     # Create the tfrecords json format
@@ -61,7 +69,7 @@ def build(coco_annotation_file, image_path_prefix,
         if category_id not in category_ids_set:
             continue
         
-        is_crowd = anno['iscrowd']
+        is_crowd = anno['iscrowd'] if 'iscrowd' in anno else False
         if is_crowd and not store_crowds:
             continue
         
@@ -181,6 +189,12 @@ def build(coco_annotation_file, image_path_prefix,
                     "count" : 0
                 }
             }
+
+            if single_class:
+                dataset[image_id]["class"] = {
+                    "label" : category_id_to_label[category_id],
+                    "text" : category_id_to_category[category_id]['name']
+                }
     
         object_instance = dataset[image_id]["object"]
     
@@ -191,7 +205,14 @@ def build(coco_annotation_file, image_path_prefix,
         object_instance["bbox"]["score"] += [1]
         object_instance["bbox"]["label"] += [category_id_to_label[category_id]]
         object_instance["bbox"]["text"] += [category_id_to_category[category_id]['name']]
-        object_instance["area"] += [anno["area"]]
+        
+        if "area" in anno:
+            object_instance["area"] += [anno["area"]]
+        else:
+            bbox_w = bbox_x2 - bbox_x1
+            bbox_h = bbox_y2 - bbox_y1
+            object_instance["area"] = (bbox_w * image_width) * (bbox_h * image_height)
+        
         object_instance["id"] += [anno["id"]]
         object_instance["count"] += 1
 
