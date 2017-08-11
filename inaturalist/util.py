@@ -6,7 +6,7 @@ import random
 import numpy as np
 
 def build(inat_annotation_file, image_path_prefix, 
-          category_ids=None):
+          category_ids=None, remap_category_ids=False):
     """Construct a tfrecords json data structure.
     Args:
         coco_annotation_file: (str) path to the coco annotation file
@@ -33,6 +33,10 @@ def build(inat_annotation_file, image_path_prefix,
     category_ids_set = set(category_ids)
 
     category_id_to_category = {category['id'] : category for category in categories}
+    if remap_category_ids:
+        category_id_to_label = {category_id : label for label, category_id in enumerate(category_ids)}
+    else:
+        category_id_to_label = {category_id : category_id for category_id in category_ids}
 
     # Create the tfrecords json format
     dataset = {}
@@ -57,7 +61,7 @@ def build(inat_annotation_file, image_path_prefix,
             "width" : image_width,
             "height" : image_height,
             "class" : {
-                "label" : category['id'],
+                "label" : category_id_to_label[category['id']],
                 "text" : category['name']
             },
             "object" : { 
@@ -80,4 +84,4 @@ def build(inat_annotation_file, image_path_prefix,
   
     print "Number of images: %d" % (len(dataset),)
   
-    return dataset
+    return dataset, category_id_to_label
