@@ -2,6 +2,10 @@
 Basic bounding box quality control reporting for COCO style datasets.
 This tool will print out Visipedia Annotation Tool urls that can be used
 to examine the images that have possible problems.
+
+The object_detection code base needs to be on your PYTHONPATH. This can
+be found here: https://github.com/tensorflow/models/tree/master/research/object_detection
+
 """
 
 import argparse
@@ -12,7 +16,8 @@ import numpy as np
 try:
     from object_detection.utils import np_box_ops
 except:
-
+    print "WARNING: Failed to import `object_detection`"
+    np_box_ops=None
     pass
 
 def clamp_boxes_to_image(dataset):
@@ -94,6 +99,9 @@ def check_for_duplicate_annotations(dataset, iou_threshold=0.9):
     Returns:
         A list of image ids that may contain duplicate annotations
     """
+    if np_box_ops is None:
+        print "WARNING: `np_box_ops` failed to import, can't check for duplicates."
+        return []
 
     image_id_to_annos = {image['id'] : [] for image in dataset['images']}
     for anno in dataset['annotations']:
