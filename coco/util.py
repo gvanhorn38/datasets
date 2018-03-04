@@ -14,7 +14,9 @@ def build(coco_annotation_file, image_path_prefix,
           store_keypoints=False, expand_boxes_to_include_keypoints=False,
           store_crowds=False,
           remap_category_ids=True,
-          single_class=False):
+          single_class=False,
+          canonical_image_dim_for_area_computation=800,
+          include_empty_images=True):
     """Construct a tfrecords json data structure.
     Args:
         coco_annotation_file: (str) path to the coco annotation file
@@ -27,6 +29,9 @@ def build(coco_annotation_file, image_path_prefix,
         remap_category_ids: (bool) If true, then the provided ids will be remapped to labels in the range [0, # categories]. If false then
             the provided ids will be used as the labels
         single_class: (bool) If true then a `class.label` and a `class.text` field will be provided for all images.
+        canonical_image_dim_for_area_computation: (int) When computing the area of an annotation using the bbox area, the box 
+            will be scaled for this image size. Set to 0 to use the per image area. 
+        include_empty_images: (bool): If true, then images with no annotations will be included in the dataset.
     
     Returns:
         list : A list that can be passed to create_tfrecords,create() 
@@ -60,6 +65,8 @@ def build(coco_annotation_file, image_path_prefix,
     else:
         category_id_to_label = {category_id : category_id for category_id in category_ids}
 
+
+    num_too_small_annos = 0
 
     # Create the tfrecords json format
     dataset = {}
@@ -157,6 +164,7 @@ def build(coco_annotation_file, image_path_prefix,
             bbox_w = bbox_x2 - bbox_x1
             bbox_h = bbox_y2 - bbox_y1
             if (bbox_w * image_width) * (bbox_h * image_height) < bbox_minimum_area:
+                num_too_small_annos += 1
                 continue
      
         # Is this the first time we are seeing this image id?
@@ -211,7 +219,16 @@ def build(coco_annotation_file, image_path_prefix,
         else:
             bbox_w = bbox_x2 - bbox_x1
             bbox_h = bbox_y2 - bbox_y1
-            object_instance["area"] = (bbox_w * image_width) * (bbox_h * image_height)
+            iw = image_width
+            ih = image_height
+            if canonical_image_dim_for_area_computation > 0:
+                if image_width > image_height:
+                    iw = canonical_image_dim_for_area_computation
+                    ih = (canonical_image_dim_for_area_computation / float(image_width)) * image_height
+                else:
+                    ih = canonical_image_dim_for_area_computation
+                    iw = (canonical_image_dim_for_area_computation / float(image_height)) * image_width
+            object_instance["area"] += [(bbox_w * iw) * (bbox_h * ih)]
         
         object_instance["id"] += [anno["id"]]
         object_instance["count"] += 1
@@ -222,12 +239,57 @@ def build(coco_annotation_file, image_path_prefix,
             object_instance['parts']['v'] += parts_v
             object_instance['parts']['score'] += [1] * num_parts 
 
+    # See if there are any empty images:
+    num_empty_images = 0
+    for image in images:
+        if image['id'] not in dataset:
+            num_empty_images += 1
+
+            if include_empty_images:
+                
+                image_id = image['id']
+                image_filename = image['file_name']
+                image_width = float(image['width'])
+                image_height = float(image['height'])
+                image_path = str("%s/%s" % (image_path_prefix, image_filename))
+
+                dataset[image_id] = { 
+                "filename" : image_path,
+                "id" : str(image_id),
+                "width" : image_width,
+                "height" : image_height,
+                "object" : { 
+                    "bbox" : {
+                        "xmin" : [],
+                        "xmax" : [],
+                        "ymin" : [],
+                        "ymax" : [],
+                        "score" : [],
+                        "label" : [],
+                        "text" : [],
+                        "conf" : []
+                    },
+                    "parts" : {
+                        "x" : [],
+                        "y" : [],
+                        "v" : [],
+                        "score" : []
+                    },
+                    "area" : [], # segmentation area
+                    "id" : [], # annotation id
+                    "count" : 0
+                }
+            }
+
     dataset = dataset.values()
     max_bboxes = max(image['object']['count'] for image in dataset)
   
     print "Number of images: %d" % (len(dataset),)
     print "Maximum number of bboxes in an image: %d" % (max_bboxes,)
-  
+    
+    print "Excluded %d annotations due to boxes being too small." % (num_too_small_annos,)
+    print "Found %d empty images, and %s them." % (num_empty_images, "included" if include_empty_images else "excluded")
+
     return dataset, category_id_to_label
 
 
