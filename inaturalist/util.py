@@ -20,7 +20,7 @@ def build(inat_annotation_file, image_path_prefix,
     with open(inat_annotation_file)  as f:
         coco_data = json.load(f)
     
-    dataset_info = coco_data['info']
+    #dataset_info = coco_data['info']
     images = coco_data['images']
     annotations = coco_data['annotations']
     categories = coco_data['categories']
@@ -71,7 +71,7 @@ def build(inat_annotation_file, image_path_prefix,
                     "ymin" : [0],
                     "ymax" : [1],
                     "score" : [1],
-                    "label" : [category['id']],
+                    "label" : [category_id_to_label[category['id']]],
                     "text" : [category['name']],
                     "conf" : [1]
                 },
