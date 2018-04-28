@@ -193,6 +193,7 @@ def build(coco_annotation_file, image_path_prefix,
                         "score" : []
                     },
                     "area" : [], # segmentation area
+                    "is_crowd" : [],
                     "id" : [], # annotation id
                     "count" : 0
                 }
@@ -228,8 +229,13 @@ def build(coco_annotation_file, image_path_prefix,
                 else:
                     ih = canonical_image_dim_for_area_computation
                     iw = (canonical_image_dim_for_area_computation / float(image_height)) * image_width
-            object_instance["area"] += [(bbox_w * iw) * (bbox_h * ih)]
+            object_instance["area"] += [(bbox_w * iw / 2.) * (bbox_h * ih / 2.)] # Divide by 2 to simulate the segmenation mask area.
         
+        if "iscrowd" in anno:
+             object_instance["is_crowd"] += [anno["iscrowd"]]
+        else:
+            object_instance["is_crowd"] += [0]
+
         object_instance["id"] += [anno["id"]]
         object_instance["count"] += 1
 
