@@ -284,7 +284,8 @@ def build(coco_annotation_file, image_path_prefix,
                         "score" : []
                     },
                     "area" : [], # segmentation area
-                    "id" : [], # annotation id
+                    "is_crowd" : [],
+                    "id" : [], # annotation id,
                     "count" : 0
                 }
             }
@@ -299,5 +300,78 @@ def build(coco_annotation_file, image_path_prefix,
     print("Found %d empty images, and %s them." % (num_empty_images, "included" if include_empty_images else "excluded"))
 
     return dataset, category_id_to_label
+
+def to_coco(tfrecord_dataset):
+
+    coco_annotations = []
+    coco_images = []
+    coco_categories = {}
+
+    annotation_box_id = 1
+    for image in dataset:
+
+        coco_image = {
+            "id" : image['id'],
+            "width" : image['width'],
+            "height" : image['height'],
+            "file_name" : image['filename'],
+            "license" : image['license'] if 'license' in image else -1,
+        }
+
+        coco_anns = []
+
+        if 'object' in image:
+            object_count = image['object']['count']
+
+            if 'bbox' in image['object']:
+
+                iw = image['width']
+                ih = image['height']
+
+                for b in range(object_count):
+
+                    xmin = image['object']['bbox']['xmin'][b]
+                    xmax = image['object']['bbox']['xmax'][b]
+                    ymin = image['object']['bbox']['ymin'][b]
+                    ymax = image['object']['bbox']['ymax'][b]
+                    w = xmax - xmin
+                    h = ymax - ymin
+                    bbox = [xmin * iw, ymin * ih, w * iw, h * ih]
+
+                    category_id = image['object']['class']['label'][b]
+                    category_text = image['object']['class']['text'][b]
+                    is_crowd = image['object']['is_crowd'][b]
+                    area = image['object']['area'][b]
+
+                    coco_anns.append({
+                        'id': annotation_box_id,
+                        'image_id': image['id'],
+                        'category_id': category_id,
+                        'area' : area,
+                        'bbox': bbox,
+                        'iscrowd' : is_crowd
+                    })
+                    annotation_box_id += 1
+
+                    if category_id not in coco_categories:
+                        coco_categories[category_id] = {
+                            'id' : category_id,
+                            'name' : category_text
+                            'supercategory' : ''
+                        }
+
+        coco_images.append(coco_image)
+        coco_annotations.extend(coco_anns)
+
+
+    coco_dataset = {
+        'info' : {},
+        'images' : coco_images,
+        'annotations' : coco_annotations,
+        'licenses' : []
+    }
+
+    return coco_dataset
+
 
 
