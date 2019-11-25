@@ -15,7 +15,7 @@ def format_labels(image_labels):
   label_values = list(set(image_labels.values()))
   label_values.sort()
   condensed_image_labels = dict([(image_id, label_values.index(label))
-                                  for image_id, label in image_labels.iteritems()])
+                                  for image_id, label in image_labels.items()])
   new_id_to_original_id_map = dict([[label_values.index(label), label] for label in label_values])
 
   return condensed_image_labels, new_id_to_original_id_map
@@ -65,7 +65,7 @@ def load_bounding_box_annotations(dataset_path=''):
     for line in f:
       pieces = line.strip().split()
       image_id = pieces[0]
-      bbox = map(int, map(float, pieces[1:]))
+      bbox = list(map(int, list(map(float, pieces[1:]))))
       bboxes[image_id] = bbox
 
   return bboxes
@@ -80,12 +80,12 @@ def load_part_annotations(dataset_path=''):
       image_id = pieces[0]
       parts_d.setdefault(image_id, {})
       part_id = int(pieces[1])
-      parts_d[image_id][part_id] = map(float, pieces[2:])
+      parts_d[image_id][part_id] = list(map(float, pieces[2:]))
 
   # convert the dictionary to an array
   parts = {}
-  for image_id, parts_dict in parts_d.items():
-    keys = parts_dict.keys()
+  for image_id, parts_dict in list(parts_d.items()):
+    keys = list(parts_dict.keys())
     keys.sort()
     parts_list = []
     for part_id in keys:
@@ -118,7 +118,7 @@ def load_image_sizes(dataset_path=''):
     for line in f:
       pieces = line.strip().split()
       image_id = pieces[0]
-      width, height = map(int, pieces[1:])
+      width, height = list(map(int, pieces[1:]))
       sizes[image_id] = [width, height]
 
   return sizes
@@ -130,7 +130,7 @@ def create_image_sizes_file(dataset_path, image_path_prefix):
 
   image_paths = load_image_paths(dataset_path, image_path_prefix)
   image_sizes = []
-  for image_id, image_path in image_paths.iteritems():
+  for image_id, image_path in image_paths.items():
     im = imread(image_path)
     image_sizes.append([image_id, im.shape[1], im.shape[0]])
 
@@ -219,12 +219,12 @@ def create_validation_split(train_data, fraction_per_class=0.1, shuffle=True):
 
     class_labels = [i['class']['label'] for i in train_data]
     images_per_class = Counter(class_labels)
-    val_images_per_class = {label : 0 for label in images_per_class.keys()}
+    val_images_per_class = {label : 0 for label in list(images_per_class.keys())}
 
     # Sanity check to make sure each class has more than 1 label
-    for label, image_count in images_per_class.items():
+    for label, image_count in list(images_per_class.items()):
         if image_count <= 1:
-          print("Warning: label %d has only %d images" % (label, image_count))
+          print(("Warning: label %d has only %d images" % (label, image_count)))
 
     if shuffle:
         random.shuffle(train_data)

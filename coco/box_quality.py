@@ -18,7 +18,7 @@ try:
     from object_detection.utils import np_box_list_ops
     from object_detection.utils import np_box_ops
 except:
-    print "WARNING: Failed to import `object_detection`"
+    print("WARNING: Failed to import `object_detection`")
     np_box_ops=None
     pass
 
@@ -131,7 +131,7 @@ def check_for_duplicate_annotations(dataset, iou_threshold=0.9, remove_boxes=Fal
         A list of image ids that may contain duplicate annotations
     """
     if np_box_ops is None:
-        print "WARNING: `np_box_ops` failed to import, can't check for duplicates."
+        print("WARNING: `np_box_ops` failed to import, can't check for duplicates.")
         return []
 
     image_id_to_annos = {image['id'] : [] for image in dataset['images']}
@@ -141,7 +141,7 @@ def check_for_duplicate_annotations(dataset, iou_threshold=0.9, remove_boxes=Fal
 
     image_ids_with_duplicates = []
     anno_ids_to_remove = set()
-    for image_id, annos in image_id_to_annos.iteritems():
+    for image_id, annos in image_id_to_annos.items():
         if len(annos) > 1:
 
             boxes = []
@@ -153,11 +153,17 @@ def check_for_duplicate_annotations(dataset, iou_threshold=0.9, remove_boxes=Fal
                 boxes.append([y, x, y2, x2])
                 ids.append(anno['id'])
 
-            boxes = np.array(boxes)
+            boxes = np.array(boxes).astype(np.float)
             scores = np.ones(len(ids), dtype=np.float32)
             ids = np.array(ids)
 
-            boxlist = np_box_list.BoxList(boxes)
+            try:
+                boxlist = np_box_list.BoxList(boxes)
+            except:
+                print(image_id)
+                print(annos)
+                print(boxes)
+                raise
             boxlist.add_field("ids", ids)
             boxlist.add_field("scores", scores)
 
@@ -217,9 +223,9 @@ def main():
         dataset = json.load(f)
 
     if args.output_fp is not None:
-        print "Problem boxes will be removed and the new dataset will be saved at:"
-        print args.output_fp
-        print
+        print("Problem boxes will be removed and the new dataset will be saved at:")
+        print(args.output_fp)
+        print()
         remove_boxes = True
 
         original_anno_count = len(dataset['annotations'])
@@ -227,68 +233,68 @@ def main():
     else:
         remove_boxes = False
 
-    print "Checking for annotations without boxes"
+    print("Checking for annotations without boxes")
     annos_without_boxes = check_for_annotations_without_boxes(dataset, remove_boxes=False)
     image_ids_with_annos_without_boxes = list(set([anno['image_id'] for anno in annos_without_boxes]))
-    print "Found %d annotations without boxes across %d images" % (len(annos_without_boxes), len(image_ids_with_annos_without_boxes))
-    print
+    print("Found %d annotations without boxes across %d images" % (len(annos_without_boxes), len(image_ids_with_annos_without_boxes)))
+    print()
 
-    print "Clamping boxes to image dimensions"
+    print("Clamping boxes to image dimensions")
     dataset, num_modified = clamp_boxes_to_image(dataset)
-    print "Clamping modified %d boxes" % (num_modified,)
-    print
+    print("Clamping modified %d boxes" % (num_modified,))
+    print()
 
-    print "Searching for small boxes whose normalized area is less than %f" % (args.small_threshold,)
+    print("Searching for small boxes whose normalized area is less than %f" % (args.small_threshold,))
     small_annos = check_for_small_boxes(dataset, args.small_threshold, remove_boxes)
     small_image_ids = list(set([anno['image_id'] for anno in small_annos]))
-    print "Found %d small boxes across %d images" % (len(small_annos), len(small_image_ids))
-    print
+    print("Found %d small boxes across %d images" % (len(small_annos), len(small_image_ids)))
+    print()
 
-    print "Searching for large boxes whose normalized area is greater than %f" % (args.large_threshold,)
+    print("Searching for large boxes whose normalized area is greater than %f" % (args.large_threshold,))
     large_annos = check_for_big_boxes(dataset, args.large_threshold, remove_boxes)
     large_image_ids = list(set([anno['image_id'] for anno in large_annos]))
-    print "Found %d large boxes across %d images" % (len(large_annos), len(large_image_ids))
-    print
+    print("Found %d large boxes across %d images" % (len(large_annos), len(large_image_ids)))
+    print()
 
-    print "Searching for duplicate boxes whose iou is greater than %f" % (args.iou_threshold,)
+    print("Searching for duplicate boxes whose iou is greater than %f" % (args.iou_threshold,))
     dup_image_ids = check_for_duplicate_annotations(dataset, args.iou_threshold, remove_boxes)
-    print "Found %d images with possible duplicate boxes" % (len(dup_image_ids),)
-    print
+    print("Found %d images with possible duplicate boxes" % (len(dup_image_ids),))
+    print()
 
-    print "Searching for images with no boxes"
+    print("Searching for images with no boxes")
     image_ids_without_boxes = check_for_no_boxes(dataset)
-    print "Found %d images with no boxes" % (len(image_ids_without_boxes),)
-    print
+    print("Found %d images with no boxes" % (len(image_ids_without_boxes),))
+    print()
 
-    print "VAT Edit URLS"
-    print
-    print "Images with annotations with no boxes"
-    print "/edit_task/?image_ids=%s" % (",".join(map(str, image_ids_with_annos_without_boxes)),)
-    print
-    print "Images with small boxes"
-    print "/edit_task/?image_ids=%s" % (",".join(map(str, small_image_ids)),)
-    print
-    print "Images with large boxes"
-    print "/edit_task/?image_ids=%s" % (",".join(map(str, large_image_ids)),)
-    print
-    print "Images with possible duplicate boxes"
-    print "/edit_task/?image_ids=%s" % (",".join(map(str, dup_image_ids)),)
-    print
-    print "Images with no boxes"
-    print "/edit_task/?image_ids=%s" % (",".join(map(str, image_ids_without_boxes)),)
-    print
+    print("VAT Edit URLS")
+    print()
+    print("Images with annotations with no boxes")
+    print("/edit_task/?image_ids=%s" % (",".join(map(str, image_ids_with_annos_without_boxes)),))
+    print()
+    print("Images with small boxes")
+    print("/edit_task/?image_ids=%s" % (",".join(map(str, small_image_ids)),))
+    print()
+    print("Images with large boxes")
+    print("/edit_task/?image_ids=%s" % (",".join(map(str, large_image_ids)),))
+    print()
+    print("Images with possible duplicate boxes")
+    print("/edit_task/?image_ids=%s" % (",".join(map(str, dup_image_ids)),))
+    print()
+    print("Images with no boxes")
+    print("/edit_task/?image_ids=%s" % (",".join(map(str, image_ids_without_boxes)),))
+    print()
 
     # Save the modified dataset
     if args.output_fp is not None:
-        print "Saving the modified dataset"
+        print("Saving the modified dataset")
         mod_anno_count = len(dataset['annotations'])
-        print "%d - %d = %d final annotations." % (original_anno_count, original_anno_count - mod_anno_count, mod_anno_count)
+        print("%d - %d = %d final annotations." % (original_anno_count, original_anno_count - mod_anno_count, mod_anno_count))
 
         with open(args.output_fp, 'w') as f:
             json.dump(dataset, f)
 
         if len(image_ids_without_boxes):
-            print "WARNING: you have images without bounding boxes in the saved dataset."
+            print("WARNING: you have images without bounding boxes in the saved dataset.")
 
 if __name__ == '__main__':
     main()
